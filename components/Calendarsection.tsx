@@ -86,8 +86,8 @@ export default function CalendarSection({ darkMode }: CalendarSectionProps) {
   const [pickerYear,    setPickerYear]    = useState(today.getFullYear());
   const [innerFade,     setInnerFade]     = useState(true);
   const pickerRef  = useRef<HTMLDivElement>(null);
-  const closeTimer = useRef<ReturnType<typeof setTimeout>>();
-  const fadeTimer  = useRef<ReturnType<typeof setTimeout>>();
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const fadeTimer  = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const yearBlockStart = Math.floor(pickerYear / YEAR_BLOCK) * YEAR_BLOCK;
 
