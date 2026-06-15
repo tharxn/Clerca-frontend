@@ -7,6 +7,7 @@ import {
   MoreVertical,
   Edit,
 } from "lucide-react";
+import LoginModal from "./LoginModal";
 
 import { DATA_CLEARED_EVENT } from "@/components/SettingsModal";
 
@@ -33,6 +34,12 @@ function formatDate(isoString: string): string {
     minute: "2-digit",
     hour12: true,
   });
+}
+
+function getToken(): string | null { return localStorage.getItem("accessToken"); }
+function isLoggedIn(): boolean {
+  const t = getToken();
+  return !!t && t !== "null" && t !== "undefined";
 }
 
 async function apiFetch(url: string, options: RequestInit = {}) {
@@ -111,6 +118,15 @@ export default function NotesSection({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Login modal
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginMessage, setLoginMessage] = useState<string | undefined>();
+
+  function requireLogin(msg: string): boolean {
+    if (!isLoggedIn()) { setLoginMessage(msg); setShowLoginModal(true); return true; }
+    return false;
+  }
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -136,9 +152,7 @@ export default function NotesSection({
 
   useEffect(() => {
     async function fetchNotes() {
-      const token = localStorage.getItem("accessToken");
-      const guestMode = localStorage.getItem("guestMode");
-      if (!token && guestMode) {
+      if (!isLoggedIn()) {
         setNotes([]);
         return;
       }
@@ -227,18 +241,23 @@ export default function NotesSection({
     : "light-scrollbar";
 
   return (
-    <section
-      className={`
-        rounded-2xl shadow-lg p-4
-        flex flex-col min-h-0
-        transition-colors duration-300
-        ${
-          darkMode
-            ? "bg-zinc-900 text-white border border-zinc-800"
-            : "bg-white text-black"
-        }
-      `}
-    >
+    <>
+      {showLoginModal && (
+        <LoginModal darkMode={darkMode} message={loginMessage} onClose={() => setShowLoginModal(false)} />
+      )}
+
+      <section
+        className={`
+          rounded-2xl shadow-lg p-4
+          flex flex-col min-h-0
+          transition-colors duration-300
+          ${
+            darkMode
+              ? "bg-zinc-900 text-white border border-zinc-800"
+              : "bg-white text-black"
+          }
+        `}
+      >
       {/* ================= NOTE VIEW ================= */}
       {selectedNote && (
         <div
@@ -402,9 +421,10 @@ export default function NotesSection({
               </div>
 
               <button
-                onClick={() =>
-                  setIsCreatingNote(true)
-                }
+                onClick={() => {
+                  if (requireLogin("Log in to create notes.")) return;
+                  setIsCreatingNote(true);
+                }}
                 className={`
                   w-9 h-9 rounded-xl flex items-center justify-center
                   ${
@@ -419,148 +439,173 @@ export default function NotesSection({
             </div>
           </div>
 
-          {notes.length === 0 && (
+          {!isLoggedIn() ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <p
-                  className={`text-lg font-medium mb-2 ${
-                    darkMode
-                      ? "text-zinc-300"
-                      : "text-gray-700"
-                  }`}
-                >
-                  Create your first note
+                <p className={`text-lg font-medium mb-2 ${darkMode ? "text-zinc-300" : "text-gray-700"}`}>
+                  Capture your thoughts
                 </p>
-
-                <p
-                  className={`text-sm ${
-                    darkMode
-                      ? "text-zinc-500"
-                      : "text-gray-500"
-                  }`}
-                >
-                  Tap + to start writing
+                <p className={`text-sm mb-4 ${darkMode ? "text-zinc-500" : "text-gray-500"}`}>
+                  Log in to create and manage notes
                 </p>
+                <button
+                  onClick={() => setShowLoginModal(true)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium ${darkMode ? "bg-white text-black" : "bg-black text-white"}`}
+                >
+                  Log in
+                </button>
               </div>
             </div>
-          )}
-
-          {notes.length > 0 && (
-            <div
-              className={`flex-1 min-h-0 p-2 rounded-2xl ${
-                darkMode
-                  ? "bg-black"
-                  : "bg-gray-100"
-              }`}
-            >
-              <div
-                className={`h-full overflow-y-auto flex flex-col gap-2 pr-2 ${scrollStyle}`}
-              >
-                {notes.map((note, index) => (
-                  <div
-                    key={index}
-                    className="relative"
-                  >
-                    <button
-                      onClick={() => {
-                        setSelectedNote(note);
-                        setSelectedIndex(index);
-                      }}
-                      className={`
-                        w-full rounded-xl p-2.5 text-left border transition
-                        min-h-[72px] flex flex-col justify-center
-                        ${
-                          darkMode
-                            ? "bg-zinc-900 hover:bg-zinc-950 border-zinc-800"
-                            : "bg-white hover:bg-gray-50 border-gray-200"
-                        }
-                      `}
+          ) : loading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <p className={`text-sm ${darkMode ? "text-zinc-500" : "text-gray-400"}`}>Loading…</p>
+            </div>
+          ) : (
+            <>
+              {notes.length === 0 && (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <p
+                      className={`text-lg font-medium mb-2 ${
+                        darkMode
+                          ? "text-zinc-300"
+                          : "text-gray-700"
+                      }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-medium text-sm truncate">
-                          {note.title}
-                        </h3>
+                      Create your first note
+                    </p>
 
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-
-                            setMenuIndex(
-                              menuIndex === index
-                                ? null
-                                : index
-                            );
-                          }}
-                        >
-                          <MoreVertical size={16} />
-                        </button>
-                      </div>
-
-                      <p
-                        className={`text-[10px] mt-0.5 mb-1 opacity-70 ${
-                          darkMode
-                            ? "text-zinc-400"
-                            : "text-gray-500"
-                        }`}
-                      >
-                        {formatDate(note.createdAt)}
-                      </p>
-
-                      <p
-                        className={`text-[12px] overflow-hidden whitespace-nowrap text-ellipsis ${
-                          darkMode
-                            ? "text-zinc-400"
-                            : "text-gray-600"
-                        }`}
-                      >
-                        {note.content}
-                      </p>
-                    </button>
-
-                    {/* MENU */}
-                    {menuIndex === index && (
-                      <div
-                        ref={menuRef}
-                        className={`
-                          absolute right-2 top-10 z-10 rounded-lg shadow-lg border overflow-hidden
-                          ${
-                            darkMode
-                              ? "bg-zinc-900 border-zinc-800"
-                              : "bg-white border-gray-200"
-                          }
-                        `}
-                      >
-                        <button
-                          onClick={() =>
-                            handleEditFromList(index)
-                          }
-                          className={`block px-4 py-2 text-xs w-full text-left transition ${
-                            darkMode
-                              ? "hover:bg-zinc-800"
-                              : "hover:bg-gray-100"
-                          }`}
-                        >
-                          Edit
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            handleDelete(note)
-                          }
-                          className={`block px-4 py-2 text-xs w-full text-left transition ${
-                            darkMode
-                              ? "text-red-400 hover:bg-zinc-800"
-                              : "text-red-500 hover:bg-gray-100"
-                          }`}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )}
+                    <p
+                      className={`text-sm ${
+                        darkMode
+                          ? "text-zinc-500"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      Tap + to start writing
+                    </p>
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              )}
+
+              {notes.length > 0 && (
+                <div
+                  className={`flex-1 min-h-0 p-2 rounded-2xl ${
+                    darkMode
+                      ? "bg-black"
+                      : "bg-gray-100"
+                  }`}
+                >
+                  <div
+                    className={`h-full overflow-y-auto flex flex-col gap-2 pr-2 ${scrollStyle}`}
+                  >
+                    {notes.map((note, index) => (
+                      <div
+                        key={index}
+                        className="relative"
+                      >
+                        <button
+                          onClick={() => {
+                            setSelectedNote(note);
+                            setSelectedIndex(index);
+                          }}
+                          className={`
+                            w-full rounded-xl p-2.5 text-left border transition
+                            min-h-[72px] flex flex-col justify-center
+                            ${
+                              darkMode
+                                ? "bg-zinc-900 hover:bg-zinc-950 border-zinc-800"
+                                : "bg-white hover:bg-gray-50 border-gray-200"
+                            }
+                          `}
+                        >
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-medium text-sm truncate">
+                              {note.title}
+                            </h3>
+
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+
+                                setMenuIndex(
+                                  menuIndex === index
+                                    ? null
+                                    : index
+                                );
+                              }}
+                            >
+                              <MoreVertical size={16} />
+                            </button>
+                          </div>
+
+                          <p
+                            className={`text-[10px] mt-0.5 mb-1 opacity-70 ${
+                              darkMode
+                                ? "text-zinc-400"
+                                : "text-gray-500"
+                            }`}
+                          >
+                            {formatDate(note.createdAt)}
+                          </p>
+
+                          <p
+                            className={`text-[12px] overflow-hidden whitespace-nowrap text-ellipsis ${
+                              darkMode
+                                ? "text-zinc-400"
+                                : "text-gray-600"
+                            }`}
+                          >
+                            {note.content}
+                          </p>
+                        </button>
+
+                        {/* MENU */}
+                        {menuIndex === index && (
+                          <div
+                            ref={menuRef}
+                            className={`
+                              absolute right-2 top-10 z-10 rounded-lg shadow-lg border overflow-hidden
+                              ${
+                                darkMode
+                                  ? "bg-zinc-900 border-zinc-800"
+                                  : "bg-white border-gray-200"
+                              }
+                            `}
+                          >
+                            <button
+                              onClick={() =>
+                                handleEditFromList(index)
+                              }
+                              className={`block px-4 py-2 text-xs w-full text-left transition ${
+                                darkMode
+                                  ? "hover:bg-zinc-800"
+                                  : "hover:bg-gray-100"
+                              }`}
+                            >
+                              Edit
+                            </button>
+
+                            <button
+                              onClick={() =>
+                                handleDelete(note)
+                              }
+                              className={`block px-4 py-2 text-xs w-full text-left transition ${
+                                darkMode
+                                  ? "text-red-400 hover:bg-zinc-800"
+                                  : "text-red-500 hover:bg-gray-100"
+                              }`}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -623,6 +668,7 @@ export default function NotesSection({
           </button>
         </div>
       )}
-    </section>
+      </section>
+    </>
   );
 }
