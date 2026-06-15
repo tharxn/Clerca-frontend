@@ -261,7 +261,8 @@ export default function ClockSection({ darkMode }: ClockSectionProps) {
   const fetchWeather = async (lat: number, lon: number) => {
     setWeatherLoading(true);
     try {
-      const res = await fetch(`http://localhost:8080/api/weather?lat=${lat}&lon=${lon}`);
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const res = await fetch(`${API_BASE}/api/weather?lat=${lat}&lon=${lon}`);
       if (!res.ok) throw new Error();
       setWeather(await res.json());
     } catch {

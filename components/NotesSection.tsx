@@ -42,28 +42,39 @@ async function apiFetch(url: string, options: RequestInit = {}) {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });
 
-  // Token expired → refresh and retry once
   if (res.status === 401) {
     const refreshToken = localStorage.getItem('refreshToken');
-    const refreshRes = await fetch('/api/auth/refresh', {
+    const guestMode = localStorage.getItem('guestMode');
+
+    if (!refreshToken) {
+      if (!guestMode) {
+        localStorage.clear();
+        window.location.href = '/login';
+      }
+      return res;
+    }
+
+    const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, {
       method: 'POST',
-      body: refreshToken,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
     });
 
     if (refreshRes.ok) {
       const data = await refreshRes.json();
       localStorage.setItem('accessToken', data.accessToken);
-      // Retry original request with new token
       return apiFetch(url, options);
     } else {
-      // Refresh also failed — force logout
       localStorage.clear();
-      window.location.href = '/login';
+      if (!guestMode) {
+        window.location.href = '/login';
+      }
+      return res;
     }
   }
 
@@ -125,6 +136,12 @@ export default function NotesSection({
 
   useEffect(() => {
     async function fetchNotes() {
+      const token = localStorage.getItem("accessToken");
+      const guestMode = localStorage.getItem("guestMode");
+      if (!token && guestMode) {
+        setNotes([]);
+        return;
+      }
       setLoading(true);
       try {
         const res = await apiFetch(`${API_BASE}/api/notes`);
