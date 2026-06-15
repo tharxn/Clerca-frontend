@@ -36,13 +36,14 @@ export default function LoginPage() {
   }
 
   function handleSkip() {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userPicture");
-    router.push("/");
-  }
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("userName");
+  localStorage.removeItem("userEmail");
+  localStorage.removeItem("userPicture");
+  localStorage.setItem("guestMode", "true");
+  router.push("/");
+}
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center px-4 py-12"
